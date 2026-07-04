@@ -1,0 +1,11 @@
+# Dependencies and build output
+node_modules/
+dist/
+
+# Never commit ROM or CHR data
+*.nes
+*.chr
+
+# Editor/OS noise
+.DS_Store
+*.log
