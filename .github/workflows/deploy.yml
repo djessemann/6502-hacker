@@ -2,7 +2,9 @@ name: CI & Deploy
 
 on:
   push:
-    branches: [main]
+    # The feature branch entry bootstraps the first deploy; safe to remove
+    # once the branch is merged.
+    branches: [main, claude/prompt-build-github-pages-nny45p]
   workflow_dispatch:
 
 permissions:
