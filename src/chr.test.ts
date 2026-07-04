@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  fillTiles,
   clearTile,
   decodeTile,
   encodeTile,
@@ -161,5 +162,42 @@ describe('tileCount', () => {
     expect(tileCount(new Uint8Array(0))).toBe(0);
     expect(tileCount(new Uint8Array(16))).toBe(1);
     expect(tileCount(new Uint8Array(8192))).toBe(512);
+  });
+});
+
+describe('fillTiles', () => {
+  it('fills an enclosed region without leaking through walls', () => {
+    // A tile with a vertical wall of color 3 down column 4.
+    const chr = new Uint8Array(16);
+    for (let y = 0; y < 8; y++) setPixel(chr, 0, 4, y, 3);
+    fillTiles(chr, [0], 0, 0, 2);
+    // Left of the wall: filled.
+    expect(getPixel(chr, 0, 0, 7)).toBe(2);
+    expect(getPixel(chr, 0, 3, 4)).toBe(2);
+    // The wall itself: untouched.
+    expect(getPixel(chr, 0, 4, 4)).toBe(3);
+    // Right of the wall: untouched.
+    expect(getPixel(chr, 0, 5, 4)).toBe(0);
+    expect(getPixel(chr, 0, 7, 0)).toBe(0);
+  });
+
+  it('crosses the boundary between two stacked tiles', () => {
+    const chr = new Uint8Array(32); // two blank tiles
+    fillTiles(chr, [0, 1], 3, 2, 1);
+    expect(getPixel(chr, 0, 0, 0)).toBe(1); // top tile filled
+    expect(getPixel(chr, 1, 7, 7)).toBe(1); // bottom tile filled too
+  });
+
+  it('is a no-op when the target already has the fill color', () => {
+    const chr = FIXTURE.slice();
+    fillTiles(chr, [0], 3, 5, 0); // (3,5) is already color 0
+    expect(chr).toEqual(FIXTURE);
+  });
+
+  it('ignores out-of-bounds start points', () => {
+    const chr = FIXTURE.slice();
+    fillTiles(chr, [0], 8, 0, 3);
+    fillTiles(chr, [0], 0, 8, 3);
+    expect(chr).toEqual(FIXTURE);
   });
 });

@@ -3,7 +3,7 @@
  * click-drag using pointer capture; shows an 8×16 unit in pair mode with
  * a red divider between the two tiles. Also owns the keyboard cursor.
  */
-import { TILE_SIZE, getPixel, setPixel } from './chr';
+import { TILE_SIZE, fillTiles, getPixel, setPixel } from './chr';
 import { PALETTES, state } from './state';
 
 const PX = 28; // canvas pixels per CHR pixel
@@ -22,8 +22,35 @@ export class EditorView {
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
 
+    // Right-click is the eyedropper, so never show the context menu here.
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
     canvas.addEventListener('pointerdown', (e) => {
-      if (!state.loaded || e.button !== 0) return;
+      if (!state.loaded) return;
+      const cell = this.cellFromEvent(e);
+      if (!cell) return;
+      state.cursor = cell;
+
+      // Eyedropper: right-click or Alt+click picks up the color under the pointer.
+      if (e.button === 2 || e.altKey) {
+        const tiles = state.selectedTiles;
+        state.colorSlot = getPixel(
+          state.chr!,
+          tiles[Math.floor(cell.y / TILE_SIZE)],
+          cell.x,
+          cell.y % TILE_SIZE,
+        );
+        state.emit();
+        return;
+      }
+      if (e.button !== 0) return;
+
+      if (state.tool === 'fill') {
+        const tiles = state.selectedTiles;
+        state.edit(tiles, (chr) => fillTiles(chr, tiles, cell.x, cell.y, state.colorSlot));
+        return;
+      }
+
       canvas.setPointerCapture(e.pointerId);
       this.painting = true;
       // Snapshot each affected tile once per stroke.

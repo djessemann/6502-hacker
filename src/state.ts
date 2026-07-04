@@ -45,6 +45,7 @@ class AppState {
 
   selected = 0;
   colorSlot = 3;
+  tool: 'brush' | 'fill' = 'brush';
   pairMode = false;
   zoom = 3;
   paletteIndex = 0;

@@ -13,6 +13,8 @@ export interface RomInfo {
   /** CHR data size in bytes. */
   chrSize: number;
   hasTrainer: boolean;
+  /** iNES mapper number, or null for raw .chr files. */
+  mapper: number | null;
 }
 
 export class RomError extends Error {
@@ -71,6 +73,8 @@ export function parseRom(data: Uint8Array): RomInfo {
       chrSize = data[5] * CHR_UNIT;
     }
     const hasTrainer = (data[6] & 0x04) !== 0;
+    let mapper = (data[6] >> 4) | (data[7] & 0xf0);
+    if (isNes2) mapper |= (data[8] & 0x0f) << 8;
     const chrOffset = HEADER_SIZE + (hasTrainer ? TRAINER_SIZE : 0) + prgSize;
     if (chrSize === 0) {
       throw new RomError(
@@ -84,12 +88,19 @@ export function parseRom(data: Uint8Array): RomInfo {
           `but the file is only ${data.length} bytes long.`,
       );
     }
-    return { kind: isNes2 ? 'nes2' : 'ines', prgSize, chrOffset, chrSize, hasTrainer };
+    return { kind: isNes2 ? 'nes2' : 'ines', prgSize, chrOffset, chrSize, hasTrainer, mapper };
   }
 
   // Raw .chr fallback: bare tile data, 16 bytes per tile.
   if (data.length > 0 && data.length % 16 === 0) {
-    return { kind: 'raw', prgSize: 0, chrOffset: 0, chrSize: data.length, hasTrainer: false };
+    return {
+      kind: 'raw',
+      prgSize: 0,
+      chrOffset: 0,
+      chrSize: data.length,
+      hasTrainer: false,
+      mapper: null,
+    };
   }
 
   throw new RomError(

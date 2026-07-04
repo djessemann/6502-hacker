@@ -28,6 +28,10 @@ const statusWarn = $('#status-warn');
 const toolPaste = $<HTMLButtonElement>('#tool-paste');
 const toolUndo = $<HTMLButtonElement>('#tool-undo');
 const toolRedo = $<HTMLButtonElement>('#tool-redo');
+const toolBrush = $<HTMLButtonElement>('#tool-brush');
+const toolFill = $<HTMLButtonElement>('#tool-fill');
+const btnNotes = $<HTMLButtonElement>('#btn-notes');
+const helpDialog = $<HTMLDialogElement>('#help-dialog');
 
 const sheet = new SheetView($<HTMLCanvasElement>('#sheet-canvas'), {
   onSelect: (tile) => state.select(tile),
@@ -44,8 +48,21 @@ function hexTile(t: number): string {
   return '$' + t.toString(16).toUpperCase().padStart(2, '0');
 }
 
+function hex(n: number): string {
+  return '0x' + n.toString(16).toUpperCase();
+}
+
 function kib(bytes: number): string {
   return bytes % 1024 === 0 ? `${bytes / 1024} KiB` : `${bytes} B`;
+}
+
+/**
+ * Where a tile lives, in the terms ROM-hacking code uses: pattern table
+ * number, id within that table, and absolute file offset.
+ */
+function tileLocation(t: number): { pt: number; ptId: number; fileOffset: number } {
+  const info = state.romInfo!;
+  return { pt: t >> 8, ptId: t & 0xff, fileOffset: info.chrOffset + t * 16 };
 }
 
 // ── File loading ───────────────────────────────────────────
@@ -231,6 +248,69 @@ toolPaste.addEventListener('click', () => {
 toolUndo.addEventListener('click', () => state.undo());
 toolRedo.addEventListener('click', () => state.redo());
 
+function setTool(tool: 'brush' | 'fill'): void {
+  state.tool = tool;
+  state.emit();
+}
+toolBrush.addEventListener('click', () => setTool('brush'));
+toolFill.addEventListener('click', () => setTool('fill'));
+
+// ── Help & hack notes ──────────────────────────────────────
+
+$('#btn-help').addEventListener('click', () => helpDialog.showModal());
+
+/**
+ * Markdown summary of every edited tile, written for pasting into an AI
+ * coding assistant (or a forum post): ROM identity plus each tile's
+ * pattern-table id and file offset.
+ */
+function hackNotes(): string {
+  const info = state.romInfo!;
+  const kindLabel = { ines: 'iNES', nes2: 'NES 2.0', raw: 'raw CHR' }[info.kind];
+  const edited = [...state.dirty].sort((a, b) => a - b);
+  const lines = [
+    `# CHR edits — ${state.fileName}`,
+    '',
+    info.kind === 'raw'
+      ? `- File: ${state.fileName} (raw CHR dump, ${info.chrSize} bytes)`
+      : `- ROM: ${state.fileName} (${kindLabel}, mapper ${info.mapper}, PRG ${kib(info.prgSize)}, CHR ${kib(info.chrSize)})`,
+    `- CHR section: file offset ${hex(info.chrOffset)}, ${state.tiles} tiles`,
+    `- Edited tiles: ${edited.length} (edited file saved as ${baseName()}.${info.kind === 'raw' ? 'chr' : 'nes'})`,
+    '',
+    '| tile | pattern table | id in table | file offset |',
+    '| --- | --- | --- | --- |',
+    ...edited.map((t) => {
+      const { pt, ptId, fileOffset } = tileLocation(t);
+      return `| ${hexTile(t)} | PT${pt} | ${hexTile(ptId)} | ${hex(fileOffset)} |`;
+    }),
+    '',
+    'Each tile is 16 bytes of 2bpp planar data (bitplane 0 in bytes 0–7, bitplane 1 in bytes 8–15).',
+    'The edited file above already contains these art changes; use the ids/offsets to find related',
+    'code — sprite/OAM tile ids, nametable entries, palette assignments.',
+  ];
+  return lines.join('\n');
+}
+
+btnNotes.addEventListener('click', async () => {
+  if (!state.loaded || state.dirty.size === 0) return;
+  try {
+    await navigator.clipboard.writeText(hackNotes());
+    flashStatus('Edit notes copied — paste into your coding assistant');
+  } catch {
+    flashStatus('Clipboard unavailable — check browser permissions');
+  }
+});
+
+let flashTimer: ReturnType<typeof setTimeout> | undefined;
+function flashStatus(msg: string): void {
+  const el = $('#status-msg');
+  el.textContent = msg;
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => {
+    el.textContent = '';
+  }, 4000);
+}
+
 // ── Keyboard ───────────────────────────────────────────────
 
 document.addEventListener('keydown', (e) => {
@@ -258,6 +338,14 @@ document.addEventListener('keydown', (e) => {
     case '4':
       state.colorSlot = Number(e.key) - 1;
       state.emit();
+      break;
+    case 'b':
+    case 'B':
+      setTool('brush');
+      break;
+    case 'f':
+    case 'F':
+      setTool('fill');
       break;
     case '[':
       state.select(state.selected - (state.pairMode ? 2 : 1));
@@ -303,11 +391,19 @@ function renderStatus(): void {
     return;
   }
   const sel = state.selectedTiles;
+  const loc = tileLocation(state.selected);
+  const multiTable = state.tiles > 256;
+  const where = `${multiTable ? `PT${loc.pt} ${hexTile(loc.ptId)} · ` : ''}file ${hex(loc.fileOffset)}`;
   statusSelected.textContent =
     sel.length === 2
-      ? `pair ${hexTile(sel[0])}+${hexTile(sel[1])}`
-      : `tile ${hexTile(state.selected)}`;
-  statusHover.textContent = state.hoverTile !== null ? `hover ${hexTile(state.hoverTile)}` : '';
+      ? `pair ${hexTile(sel[0])}+${hexTile(sel[1])} · ${where}`
+      : `tile ${hexTile(state.selected)} · ${where}`;
+  if (state.hoverTile !== null) {
+    const h = tileLocation(state.hoverTile);
+    statusHover.textContent = `hover ${hexTile(state.hoverTile)}${multiTable ? ` (PT${h.pt} ${hexTile(h.ptId)})` : ''}`;
+  } else {
+    statusHover.textContent = '';
+  }
   statusDirty.textContent =
     state.dirty.size > 0
       ? `${state.dirty.size} tile${state.dirty.size === 1 ? '' : 's'} edited`
@@ -323,6 +419,7 @@ function renderMeta(): void {
   const parts = [
     `<strong>${escapeHtml(state.fileName ?? '')}</strong>`,
     kindLabel,
+    state.romInfo.mapper !== null ? `mapper ${state.romInfo.mapper}` : '',
     state.romInfo.kind !== 'raw' ? `PRG ${kib(state.romInfo.prgSize)}` : '',
     `CHR ${kib(state.romInfo.chrSize)}`,
     `${state.tiles} tiles`,
@@ -349,9 +446,12 @@ function render(): void {
   btnDlNes.disabled = !state.loaded || state.romInfo?.kind === 'raw';
   btnDlChr.disabled = !state.loaded;
   btnDlPng.disabled = !state.loaded;
+  btnNotes.disabled = !state.loaded || state.dirty.size === 0;
   toolPaste.disabled = !state.loaded || !state.clipboard;
   toolUndo.disabled = !state.canUndo;
   toolRedo.disabled = !state.canRedo;
+  toolBrush.setAttribute('aria-pressed', String(state.tool === 'brush'));
+  toolFill.setAttribute('aria-pressed', String(state.tool === 'fill'));
   for (const id of ['#tool-flip-h', '#tool-flip-v', '#tool-clear', '#tool-copy']) {
     $<HTMLButtonElement>(id).disabled = !state.loaded;
   }

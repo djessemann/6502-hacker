@@ -173,3 +173,24 @@ describe('extractChr / patchRom', () => {
     expect(() => patchRom(rom, info, new Uint8Array(4096))).toThrowError(RomError);
   });
 });
+
+describe('mapper number', () => {
+  it('combines flags 6/7 nibbles for iNES', () => {
+    // flags6 high nibble = 4 (low bits of mapper), flags7 high nibble = 0.
+    const info = parseRom(makeRom({ flags6: 0x40 }));
+    expect(info.mapper).toBe(4);
+    const info2 = parseRom(makeRom({ flags6: 0x10, flags7: 0x40 }));
+    expect(info2.mapper).toBe(0x41);
+  });
+
+  it('adds byte 8 low nibble as bits 8-11 in NES 2.0', () => {
+    const rom = makeRom({ flags6: 0x10, flags7: 0x08 });
+    rom[8] = 0x02; // mapper bits 8-11 = 2
+    const info = parseRom(rom);
+    expect(info.mapper).toBe(0x201);
+  });
+
+  it('is null for raw .chr data', () => {
+    expect(parseRom(new Uint8Array(32)).mapper).toBeNull();
+  });
+});
