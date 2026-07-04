@@ -268,6 +268,11 @@ kbd {
   gap: 6px;
 }
 
+.tools button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .hint {
   margin: 0;
   color: var(--ink-dim);
@@ -296,8 +301,57 @@ kbd {
   margin-right: 5px;
 }
 
+#status-msg {
+  color: #8fbf6f;
+}
+
 #status-warn {
   color: var(--accent);
+}
+
+/* ── Help dialog ────────────────────────────────────────── */
+
+#help-dialog {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--accent);
+  border-radius: 4px;
+  max-width: 34rem;
+  padding: 20px 24px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+#help-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+#help-dialog h2 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+}
+
+#help-dialog p {
+  margin: 0 0 10px;
+}
+
+#help-dialog em {
+  color: var(--accent);
+  font-style: normal;
+}
+
+#help-dialog code {
+  background: var(--panel-2);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+#help-dialog form {
+  margin-top: 14px;
+  text-align: right;
 }
 
 /* ── Drop overlay ───────────────────────────────────────── */

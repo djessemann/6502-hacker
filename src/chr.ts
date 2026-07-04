@@ -95,6 +95,35 @@ export function clearTile(chr: Uint8Array, tile: number): void {
   chr.fill(0, tile * TILE_BYTES, (tile + 1) * TILE_BYTES);
 }
 
+/**
+ * Flood-fill on the pixel grid formed by stacking `tiles` vertically
+ * (8 wide, 8 × tiles.length tall) — one tile, or an 8×16 pair.
+ * Fills the 4-connected region containing (x, y) with `color`.
+ */
+export function fillTiles(
+  chr: Uint8Array,
+  tiles: number[],
+  x: number,
+  y: number,
+  color: number,
+): void {
+  const height = tiles.length * TILE_SIZE;
+  if (x < 0 || x >= TILE_SIZE || y < 0 || y >= height) return;
+  const read = (px: number, py: number): number => getPixel(chr, tiles[py >> 3], px, py & 7);
+  const write = (px: number, py: number): void => setPixel(chr, tiles[py >> 3], px, py & 7, color);
+
+  const target = read(x, y);
+  if (target === (color & 3)) return;
+  const stack: [number, number][] = [[x, y]];
+  while (stack.length > 0) {
+    const [px, py] = stack.pop()!;
+    if (px < 0 || px >= TILE_SIZE || py < 0 || py >= height) continue;
+    if (read(px, py) !== target) continue;
+    write(px, py);
+    stack.push([px - 1, py], [px + 1, py], [px, py - 1], [px, py + 1]);
+  }
+}
+
 function reverseByte(b: number): number {
   b = ((b & 0xf0) >> 4) | ((b & 0x0f) << 4);
   b = ((b & 0xcc) >> 2) | ((b & 0x33) << 2);

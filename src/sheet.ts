@@ -123,6 +123,21 @@ export class SheetView {
       ctx.stroke();
     }
 
+    // Label each 256-tile pattern table — the ids code refers to are
+    // relative to these sections.
+    if (rows > 16 && zoom >= 2) {
+      ctx.font = '10px ui-monospace, Menlo, Consolas, monospace';
+      ctx.textBaseline = 'top';
+      for (let pt = 0; pt * 16 < rows; pt++) {
+        const label = `PT${pt}`;
+        const y = pt * 16 * cell + 2;
+        ctx.fillStyle = 'rgba(23, 24, 26, 0.75)';
+        ctx.fillRect(1, y - 1, ctx.measureText(label).width + 6, 13);
+        ctx.fillStyle = accent;
+        ctx.fillText(label, 4, y);
+      }
+    }
+
     // Dirty-tile corner marks.
     ctx.fillStyle = accent;
     const mark = Math.max(3, zoom * 2);
