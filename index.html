@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CHR Workbench — NES tile editor</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%2317181a'/><rect x='2' y='2' width='5' height='5' fill='%23d04a44'/><rect x='9' y='2' width='5' height='5' fill='%23aaaaaa'/><rect x='2' y='9' width='5' height='5' fill='%23666666'/><rect x='9' y='9' width='5' height='5' fill='%23e9e7e2'/></svg>"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <header id="topbar">
+        <div class="wordmark">CHR<em>WORKBENCH</em></div>
+        <div id="file-meta" class="file-meta"></div>
+        <div class="header-actions">
+          <button id="btn-load" type="button">Load file…</button>
+          <input type="file" id="file-input" accept=".nes,.chr,.bin" hidden />
+          <button id="btn-dl-nes" type="button" disabled title="Download patched .nes">
+            ↓ .nes
+          </button>
+          <button id="btn-dl-chr" type="button" disabled title="Download raw CHR">↓ .chr</button>
+          <button id="btn-dl-png" type="button" disabled title="Export sheet as PNG">↓ .png</button>
+        </div>
+      </header>
+
+      <main id="panes">
+        <section id="sheet-pane" aria-label="Tile sheet">
+          <div class="pane-toolbar">
+            <div class="zoom-controls">
+              <button id="zoom-out" type="button" title="Zoom out">−</button>
+              <span id="zoom-label">3×</span>
+              <button id="zoom-in" type="button" title="Zoom in">+</button>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="pair-toggle" />
+              8×16 pairs
+            </label>
+          </div>
+          <div id="sheet-scroll">
+            <canvas id="sheet-canvas"></canvas>
+            <div id="empty-state">
+              <p class="empty-title">Drop a .nes or .chr file to begin</p>
+              <p class="empty-note">
+                Everything runs in your browser — no file ever leaves this page.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="editor-pane" aria-label="Pixel editor">
+          <canvas id="editor-canvas"></canvas>
+
+          <div class="palette-block">
+            <div class="swatch-row" id="swatch-row" role="group" aria-label="Palette slots">
+              <button class="swatch" data-slot="0" type="button" title="Slot 0 (key 1)"></button>
+              <button class="swatch" data-slot="1" type="button" title="Slot 1 (key 2)"></button>
+              <button class="swatch" data-slot="2" type="button" title="Slot 2 (key 3)"></button>
+              <button class="swatch" data-slot="3" type="button" title="Slot 3 (key 4)"></button>
+            </div>
+            <select id="palette-select" aria-label="Preview palette"></select>
+            <p class="palette-note">
+              These are palette <strong>slots</strong>, not final colors — the game assigns real
+              colors at runtime. Preview palettes are cosmetic only.
+            </p>
+          </div>
+
+          <div class="tools">
+            <button id="tool-flip-h" type="button">Flip H</button>
+            <button id="tool-flip-v" type="button">Flip V</button>
+            <button id="tool-clear" type="button">Clear</button>
+            <button id="tool-copy" type="button">Copy</button>
+            <button id="tool-paste" type="button">Paste</button>
+            <button id="tool-undo" type="button" title="Cmd/Ctrl+Z">Undo</button>
+            <button id="tool-redo" type="button" title="Cmd/Ctrl+Shift+Z">Redo</button>
+          </div>
+
+          <p class="hint">
+            Keys: <kbd>1</kbd>–<kbd>4</kbd> color · <kbd>[</kbd> <kbd>]</kbd> tile ·
+            <kbd>↑↓←→</kbd> cursor · <kbd>Space</kbd> paint · <kbd>⌘Z</kbd> undo
+          </p>
+        </section>
+      </main>
+
+      <footer id="statusbar">
+        <span id="status-selected">no file</span>
+        <span id="status-hover"></span>
+        <span id="status-dirty"></span>
+        <span id="status-warn" role="alert"></span>
+      </footer>
+    </div>
+
+    <div id="drop-overlay" hidden><span>Drop to load</span></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
