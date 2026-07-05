@@ -112,7 +112,11 @@ fixtures. `src/sheet.ts` and `src/editor.ts` render the two canvases,
 `src/main.ts` wires the UI.
 
 On push to `main`, GitHub Actions runs lint + tests, builds, and deploys to
-GitHub Pages.
+GitHub Pages. Each build stamps a version id into the page and a matching
+`version.json`; on load the page fetches `version.json` uncached and, if it
+is running an older build, reloads once against a version-keyed URL so a
+stale CDN or mobile cache can't leave you on an out-of-date page. The
+current build id shows in the footer.
 
 `.gitignore` excludes `*.nes` and `*.chr` so nobody accidentally commits ROM
 data — bring your own homebrew or public-domain files.

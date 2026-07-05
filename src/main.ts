@@ -14,6 +14,43 @@ import { BENCH_COLS, PALETTES, state } from './state';
 
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
 
+/**
+ * Freshness self-check. GitHub Pages can't set cache headers, and iOS
+ * Safari has no true hard-refresh, so a device can get stuck on a stale
+ * (or partially downloaded) copy of the page. On load we fetch the
+ * current build id — bypassing every cache — and if the running page is
+ * out of date, reload once against a build-keyed URL so the CDN must
+ * serve fresh bytes. The URL guard makes a loop impossible and uses no
+ * storage. Failures are silent: staleness recovery must never itself
+ * break the page.
+ */
+async function checkFreshness(): Promise<void> {
+  try {
+    const url = new URL(location.href);
+    // At most one heal per navigation: if we already carry the marker,
+    // strip it and stop. This holds even if the CDN serves a fresh
+    // version.json but a still-stale page (propagation skew) — the worst
+    // case is running one deploy behind, never a reload loop.
+    if (url.searchParams.has('v')) {
+      url.searchParams.delete('v');
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+      return;
+    }
+    const res = await fetch(`${import.meta.env.BASE_URL}version.json?ts=${Date.now()}`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return;
+    const { id } = (await res.json()) as { id?: string };
+    if (id && id !== __BUILD_ID__) {
+      url.searchParams.set('v', id); // unique URL → guaranteed cache miss
+      location.replace(url.toString());
+    }
+  } catch {
+    /* offline or blocked — keep running the page we have */
+  }
+}
+void checkFreshness();
+
 const fileInput = $<HTMLInputElement>('#file-input');
 const fileMeta = $('#file-meta');
 const btnDlNes = $<HTMLButtonElement>('#btn-dl-nes');
@@ -634,6 +671,8 @@ function render(): void {
   bench.render();
   gallery.render();
 }
+
+$('#build-stamp').textContent = `build ${__BUILD_ID__}`;
 
 state.subscribe(render);
 render();

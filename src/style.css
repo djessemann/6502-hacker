@@ -449,6 +449,11 @@ kbd {
   color: var(--accent);
 }
 
+.build-stamp {
+  margin-left: auto;
+  opacity: 0.5;
+}
+
 /* ── Help dialog ────────────────────────────────────────── */
 
 #help-dialog {
