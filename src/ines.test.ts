@@ -60,9 +60,28 @@ describe('parseRom — iNES', () => {
     expect(info.chrOffset).toBe(16 + 512 + 16384);
   });
 
-  it('detects CHR-RAM (CHR size 0) and refuses to edit', () => {
-    expect(() => parseRom(makeRom({ chrUnits: 0 }))).toThrowError(RomError);
-    expect(() => parseRom(makeRom({ chrUnits: 0 }))).toThrowError(/CHR-RAM/);
+  it('exposes the whole PRG as the edit window for CHR-RAM games', () => {
+    const info = parseRom(makeRom({ prgUnits: 2, chrUnits: 0 }));
+    expect(info.chrRam).toBe(true);
+    expect(info.chrOffset).toBe(16);
+    expect(info.chrSize).toBe(32768);
+  });
+
+  it('accounts for a trainer in the CHR-RAM window offset', () => {
+    const info = parseRom(makeRom({ chrUnits: 0, trainer: true }));
+    expect(info.chrRam).toBe(true);
+    expect(info.chrOffset).toBe(16 + 512);
+    expect(info.chrSize).toBe(16384);
+  });
+
+  it('rejects a CHR-RAM ROM with no PRG data', () => {
+    const rom = makeRom({ prgUnits: 0, chrUnits: 0 });
+    expect(() => parseRom(rom)).toThrowError(RomError);
+  });
+
+  it('marks CHR-ROM games as not CHR-RAM', () => {
+    expect(parseRom(makeRom()).chrRam).toBe(false);
+    expect(parseRom(new Uint8Array(64)).chrRam).toBe(false);
   });
 
   it('rejects a file whose CHR section runs past the end', () => {

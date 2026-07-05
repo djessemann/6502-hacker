@@ -5,6 +5,7 @@
 import './style.css';
 import { clearTile, flipTileH, flipTileV, getTileBytes, setTileBytes, TILE_BYTES } from './chr';
 import { extractChr, parseRom, patchRom, RomError } from './ines';
+import { BenchView } from './bench';
 import { EditorView } from './editor';
 import { SheetView } from './sheet';
 import { PALETTES, state } from './state';
@@ -33,15 +34,31 @@ const toolFill = $<HTMLButtonElement>('#tool-fill');
 const toolPick = $<HTMLButtonElement>('#tool-pick');
 const btnNotes = $<HTMLButtonElement>('#btn-notes');
 const helpDialog = $<HTMLDialogElement>('#help-dialog');
+const offsetControls = $('#offset-controls');
+const offsLabel = $('#offs-label');
+const modeNote = $('#mode-note');
+const benchBlock = $('#bench-block');
+const benchFlipH = $<HTMLButtonElement>('#bench-flip-h');
+const benchFlipV = $<HTMLButtonElement>('#bench-flip-v');
+const benchRemove = $<HTMLButtonElement>('#bench-remove');
 
 const sheet = new SheetView($<HTMLCanvasElement>('#sheet-canvas'), {
-  onSelect: (tile) => state.select(tile),
+  onSelect: (tile) => {
+    // An armed bench cell captures the click, then arms the next empty one.
+    if (state.benchSel !== null) {
+      state.bench[state.benchSel] = { tile, flipH: false, flipV: false };
+      const after = state.bench.findIndex((c, i) => i > (state.benchSel as number) && c === null);
+      state.benchSel = after === -1 ? null : after;
+    }
+    state.select(tile);
+  },
   onHover: (tile) => {
     state.hoverTile = tile;
     renderStatus();
   },
 });
 const editor = new EditorView($<HTMLCanvasElement>('#editor-canvas'));
+const bench = new BenchView($<HTMLCanvasElement>('#bench-canvas'));
 
 // ── Formatting helpers ─────────────────────────────────────
 
@@ -63,7 +80,7 @@ function kib(bytes: number): string {
  */
 function tileLocation(t: number): { pt: number; ptId: number; fileOffset: number } {
   const info = state.romInfo!;
-  return { pt: t >> 8, ptId: t & 0xff, fileOffset: info.chrOffset + t * 16 };
+  return { pt: t >> 8, ptId: t & 0xff, fileOffset: info.chrOffset + state.viewOffset + t * 16 };
 }
 
 // ── File loading ───────────────────────────────────────────
@@ -134,14 +151,14 @@ function download(blob: Blob, name: string): void {
 }
 
 btnDlNes.addEventListener('click', () => {
-  if (!state.fileBytes || !state.romInfo || !state.chr || state.romInfo.kind === 'raw') return;
-  const patched = patchRom(state.fileBytes, state.romInfo, state.chr);
+  if (!state.fileBytes || !state.romInfo || !state.chrFull || state.romInfo.kind === 'raw') return;
+  const patched = patchRom(state.fileBytes, state.romInfo, state.chrFull);
   download(new Blob([patched.slice().buffer]), `${baseName()}.nes`);
 });
 
 btnDlChr.addEventListener('click', () => {
-  if (!state.chr) return;
-  download(new Blob([state.chr.slice().buffer]), `${baseName()}.chr`);
+  if (!state.chrFull) return;
+  download(new Blob([state.chrFull.slice().buffer]), `${baseName()}.chr`);
 });
 
 btnDlPng.addEventListener('click', () => {
@@ -163,10 +180,19 @@ btnDlPng.addEventListener('click', () => {
 $('#zoom-in').addEventListener('click', () => setZoom(state.zoom + 1));
 $('#zoom-out').addEventListener('click', () => setZoom(state.zoom - 1));
 
+/** Largest zoom whose canvas height stays inside browser limits. */
+function maxZoom(): number {
+  const rows = Math.max(1, Math.ceil(state.tiles / 16));
+  return Math.max(1, Math.min(6, Math.floor(32000 / (rows * 8))));
+}
+
 function setZoom(z: number): void {
-  state.zoom = Math.max(1, Math.min(6, z));
+  state.zoom = Math.max(1, Math.min(maxZoom(), z));
   state.emit();
 }
+
+$('#offs-minus').addEventListener('click', () => state.setViewOffset(state.viewOffset - 1));
+$('#offs-plus').addEventListener('click', () => state.setViewOffset(state.viewOffset + 1));
 
 pairToggle.addEventListener('change', () => {
   state.pairMode = pairToggle.checked;
@@ -257,6 +283,37 @@ toolBrush.addEventListener('click', () => setTool('brush'));
 toolFill.addEventListener('click', () => setTool('fill'));
 toolPick.addEventListener('click', () => setTool('pick'));
 
+// ── Assembly bench ─────────────────────────────────────────
+
+function benchCell() {
+  return state.benchSel !== null ? state.bench[state.benchSel] : null;
+}
+benchFlipH.addEventListener('click', () => {
+  const c = benchCell();
+  if (c) {
+    c.flipH = !c.flipH;
+    state.emit();
+  }
+});
+benchFlipV.addEventListener('click', () => {
+  const c = benchCell();
+  if (c) {
+    c.flipV = !c.flipV;
+    state.emit();
+  }
+});
+benchRemove.addEventListener('click', () => {
+  if (state.benchSel !== null) {
+    state.bench[state.benchSel] = null;
+    state.emit();
+  }
+});
+$('#bench-clear').addEventListener('click', () => {
+  state.bench.fill(null);
+  state.benchSel = null;
+  state.emit();
+});
+
 // ── Help & hack notes ──────────────────────────────────────
 
 $('#btn-help').addEventListener('click', () => {
@@ -281,15 +338,19 @@ function hackNotes(): string {
     '',
     info.kind === 'raw'
       ? `- File: ${state.fileName} (raw CHR dump, ${info.chrSize} bytes)`
-      : `- ROM: ${state.fileName} (${kindLabel}, mapper ${info.mapper}, PRG ${kib(info.prgSize)}, CHR ${kib(info.chrSize)})`,
-    `- CHR section: file offset ${hex(info.chrOffset)}, ${state.tiles} tiles`,
+      : `- ROM: ${state.fileName} (${kindLabel}, mapper ${info.mapper}, PRG ${kib(info.prgSize)}, CHR ${info.chrRam ? 'RAM' : kib(info.chrSize)})`,
+    info.chrRam
+      ? `- CHR-RAM game: tiles decoded straight from PRG-ROM (view offset ${state.viewOffset}), so file offsets point into PRG`
+      : `- CHR section: file offset ${hex(info.chrOffset)}, ${state.tiles} tiles`,
     `- Edited tiles: ${edited.length} (edited file saved as ${baseName()}.${info.kind === 'raw' ? 'chr' : 'nes'})`,
     '',
     '| tile | pattern table | id in table | file offset |',
     '| --- | --- | --- | --- |',
     ...edited.map((t) => {
       const { pt, ptId, fileOffset } = tileLocation(t);
-      return `| ${hexTile(t)} | PT${pt} | ${hexTile(ptId)} | ${hex(fileOffset)} |`;
+      return info.chrRam
+        ? `| ${hexTile(t)} | — | — | ${hex(fileOffset)} |`
+        : `| ${hexTile(t)} | PT${pt} | ${hexTile(ptId)} | ${hex(fileOffset)} |`;
     }),
     '',
     'Each tile is 16 bytes of 2bpp planar data (bitplane 0 in bytes 0–7, bitplane 1 in bytes 8–15).',
@@ -404,7 +465,7 @@ function renderStatus(): void {
   }
   const sel = state.selectedTiles;
   const loc = tileLocation(state.selected);
-  const multiTable = state.tiles > 256;
+  const multiTable = state.tiles > 256 && !state.romInfo?.chrRam;
   const where = `${multiTable ? `PT${loc.pt} ${hexTile(loc.ptId)} · ` : ''}file ${hex(loc.fileOffset)}`;
   statusSelected.textContent =
     sel.length === 2
@@ -433,7 +494,7 @@ function renderMeta(): void {
     kindLabel,
     state.romInfo.mapper !== null ? `mapper ${state.romInfo.mapper}` : '',
     state.romInfo.kind !== 'raw' ? `PRG ${kib(state.romInfo.prgSize)}` : '',
-    `CHR ${kib(state.romInfo.chrSize)}`,
+    state.romInfo.chrRam ? 'CHR-RAM' : `CHR ${kib(state.romInfo.chrSize)}`,
     `${state.tiles} tiles`,
     state.romInfo.hasTrainer ? 'trainer' : '',
   ].filter(Boolean);
@@ -446,7 +507,18 @@ function escapeHtml(s: string): string {
 
 function render(): void {
   emptyState.style.display = state.loaded ? 'none' : '';
+  if (state.zoom > maxZoom()) state.zoom = maxZoom();
   zoomLabel.textContent = `${state.zoom}×`;
+
+  const chrRam = state.romInfo?.chrRam === true;
+  offsetControls.hidden = !chrRam;
+  modeNote.hidden = !chrRam;
+  offsLabel.textContent = `offs ${state.viewOffset}`;
+  benchBlock.hidden = !state.loaded;
+  const cell = state.benchSel !== null ? state.bench[state.benchSel] : null;
+  benchFlipH.disabled = !cell;
+  benchFlipV.disabled = !cell;
+  benchRemove.disabled = !cell;
 
   const palette = PALETTES[state.paletteIndex];
   for (const swatch of swatches) {
@@ -473,6 +545,7 @@ function render(): void {
   renderStatus();
   sheet.render();
   editor.render();
+  bench.render();
 }
 
 state.subscribe(render);

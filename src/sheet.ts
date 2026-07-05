@@ -113,19 +113,25 @@ export class SheetView {
     const cell = TILE_SIZE * zoom;
     const accent = '#d04a44';
 
+    // Pattern tables only exist for real CHR data — in CHR-RAM mode the
+    // sheet is raw PRG-ROM, so separators and labels would mislead.
+    const showTables = !state.romInfo?.chrRam;
+
     // Pattern-table separators: a red rule every 256 tiles (16 rows).
     ctx.strokeStyle = accent;
     ctx.lineWidth = Math.max(1, Math.floor(zoom / 2));
-    for (let r = 16; r < rows; r += 16) {
-      ctx.beginPath();
-      ctx.moveTo(0, r * cell + 0.5);
-      ctx.lineTo(this.canvas.width, r * cell + 0.5);
-      ctx.stroke();
+    if (showTables) {
+      for (let r = 16; r < rows; r += 16) {
+        ctx.beginPath();
+        ctx.moveTo(0, r * cell + 0.5);
+        ctx.lineTo(this.canvas.width, r * cell + 0.5);
+        ctx.stroke();
+      }
     }
 
     // Label each 256-tile pattern table — the ids code refers to are
     // relative to these sections.
-    if (rows > 16 && zoom >= 2) {
+    if (showTables && rows > 16 && zoom >= 2) {
       ctx.font = '10px ui-monospace, Menlo, Consolas, monospace';
       ctx.textBaseline = 'top';
       for (let pt = 0; pt * 16 < rows; pt++) {

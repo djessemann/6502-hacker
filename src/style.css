@@ -15,6 +15,11 @@
   box-sizing: border-box;
 }
 
+/* The hidden attribute must beat any display rule (e.g. flex containers). */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -274,6 +279,47 @@ kbd {
 .tools button[aria-pressed='true'] {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* ── Assembly bench ─────────────────────────────────────── */
+
+.bench-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  width: 100%;
+}
+
+.bench-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ink-dim);
+  letter-spacing: 0.5px;
+}
+
+#bench-canvas {
+  width: 192px;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  touch-action: none;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.bench-hint {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: 11px;
+}
+
+/* ── CHR-RAM mode ───────────────────────────────────────── */
+
+#mode-note {
+  color: var(--accent);
+  font-size: 11px;
 }
 
 /* ── Status bar ─────────────────────────────────────────── */
