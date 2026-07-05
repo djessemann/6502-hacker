@@ -33,6 +33,8 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* Track the real visible height under mobile browser toolbars. */
+  height: 100dvh;
 }
 
 button,
@@ -420,5 +422,22 @@ kbd {
   #editor-pane {
     width: 100%;
     align-items: center;
+  }
+}
+
+/* Comfortable touch targets on coarse pointers (phones, tablets). */
+@media (pointer: coarse) {
+  button,
+  select {
+    padding: 10px 12px;
+  }
+
+  .swatch {
+    width: 48px;
+    height: 48px;
+  }
+
+  .zoom-controls button {
+    width: 40px;
   }
 }
