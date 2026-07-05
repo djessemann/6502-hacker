@@ -1,6 +1,7 @@
 /* CHR Workbench — dark hardware-console aesthetic. */
 
 :root {
+  color-scheme: dark;
   --bg: #17181a;
   --panel: #212326;
   --panel-2: #2a2d31;
