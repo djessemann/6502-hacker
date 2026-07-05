@@ -260,7 +260,9 @@ toolPick.addEventListener('click', () => setTool('pick'));
 // ── Help & hack notes ──────────────────────────────────────
 
 $('#btn-help').addEventListener('click', () => {
-  helpDialog.showModal();
+  // <dialog> is missing on older WebKit; fall back to the open attribute.
+  if (typeof helpDialog.showModal === 'function') helpDialog.showModal();
+  else helpDialog.setAttribute('open', '');
   // showModal focuses the Close button at the bottom; start at the top.
   helpDialog.scrollTop = 0;
 });
