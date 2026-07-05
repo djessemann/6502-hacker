@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <title>CHR Workbench — NES tile editor</title>
+    <script>
+      // Surface any script failure in the status bar instead of leaving the
+      // UI silently dead. ES5 on purpose: this must parse everywhere.
+      window.addEventListener('error', function (e) {
+        var el = document.getElementById('status-warn');
+        if (el) el.textContent = 'App error: ' + (e.message || 'script failed to load');
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        var el = document.getElementById('status-warn');
+        if (el)
+          el.textContent =
+            'App error: ' + (e.reason && e.reason.message ? e.reason.message : e.reason);
+      });
+    </script>
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%2317181a'/><rect x='2' y='2' width='5' height='5' fill='%23d04a44'/><rect x='9' y='2' width='5' height='5' fill='%23aaaaaa'/><rect x='2' y='9' width='5' height='5' fill='%23666666'/><rect x='9' y='9' width='5' height='5' fill='%23e9e7e2'/></svg>"
@@ -17,7 +31,9 @@
         <div id="file-meta" class="file-meta"></div>
         <div class="header-actions">
           <button id="btn-load" type="button">Load file…</button>
-          <input type="file" id="file-input" accept=".nes,.chr,.bin" hidden />
+          <!-- No accept filter: iOS greys out extensions it can't map to a
+               registered type (.nes/.chr). Content is validated on load. -->
+          <input type="file" id="file-input" hidden />
           <button id="btn-dl-nes" type="button" disabled title="Download patched .nes">
             ↓ .nes
           </button>

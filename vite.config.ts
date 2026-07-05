@@ -8,7 +8,9 @@ export default defineConfig({
   // point at deploy-hashed asset files that no longer exist on Pages.
   plugins: [viteSingleFile()],
   build: {
-    target: 'es2022',
+    // Conservative target: native class fields (es2022) require iOS 14.5+,
+    // and dead-silent script failure is the cost of guessing wrong.
+    target: 'es2018',
   },
   test: {
     environment: 'node',
