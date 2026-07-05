@@ -31,8 +31,8 @@ export class EditorView {
       if (!cell) return;
       state.cursor = cell;
 
-      // Eyedropper: right-click or Alt+click picks up the color under the pointer.
-      if (e.button === 2 || e.altKey) {
+      // Eyedropper: the Pick tool (touch-friendly), right-click, or Alt+click.
+      if (state.tool === 'pick' || e.button === 2 || e.altKey) {
         const tiles = state.selectedTiles;
         state.colorSlot = getPixel(
           state.chr!,
@@ -40,6 +40,7 @@ export class EditorView {
           cell.x,
           cell.y % TILE_SIZE,
         );
+        if (state.tool === 'pick') state.tool = 'brush'; // one pick, back to painting
         state.emit();
         return;
       }

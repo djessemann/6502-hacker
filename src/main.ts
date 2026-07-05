@@ -30,6 +30,7 @@ const toolUndo = $<HTMLButtonElement>('#tool-undo');
 const toolRedo = $<HTMLButtonElement>('#tool-redo');
 const toolBrush = $<HTMLButtonElement>('#tool-brush');
 const toolFill = $<HTMLButtonElement>('#tool-fill');
+const toolPick = $<HTMLButtonElement>('#tool-pick');
 const btnNotes = $<HTMLButtonElement>('#btn-notes');
 const helpDialog = $<HTMLDialogElement>('#help-dialog');
 
@@ -248,12 +249,13 @@ toolPaste.addEventListener('click', () => {
 toolUndo.addEventListener('click', () => state.undo());
 toolRedo.addEventListener('click', () => state.redo());
 
-function setTool(tool: 'brush' | 'fill'): void {
+function setTool(tool: 'brush' | 'fill' | 'pick'): void {
   state.tool = tool;
   state.emit();
 }
 toolBrush.addEventListener('click', () => setTool('brush'));
 toolFill.addEventListener('click', () => setTool('fill'));
+toolPick.addEventListener('click', () => setTool('pick'));
 
 // ── Help & hack notes ──────────────────────────────────────
 
@@ -350,6 +352,10 @@ document.addEventListener('keydown', (e) => {
     case 'f':
     case 'F':
       setTool('fill');
+      break;
+    case 'i':
+    case 'I':
+      setTool('pick');
       break;
     case '[':
       state.select(state.selected - (state.pairMode ? 2 : 1));
@@ -456,6 +462,7 @@ function render(): void {
   toolRedo.disabled = !state.canRedo;
   toolBrush.setAttribute('aria-pressed', String(state.tool === 'brush'));
   toolFill.setAttribute('aria-pressed', String(state.tool === 'fill'));
+  toolPick.setAttribute('aria-pressed', String(state.tool === 'pick'));
   for (const id of ['#tool-flip-h', '#tool-flip-v', '#tool-clear', '#tool-copy']) {
     $<HTMLButtonElement>(id).disabled = !state.loaded;
   }
