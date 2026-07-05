@@ -257,7 +257,11 @@ toolFill.addEventListener('click', () => setTool('fill'));
 
 // ── Help & hack notes ──────────────────────────────────────
 
-$('#btn-help').addEventListener('click', () => helpDialog.showModal());
+$('#btn-help').addEventListener('click', () => {
+  helpDialog.showModal();
+  // showModal focuses the Close button at the bottom; start at the top.
+  helpDialog.scrollTop = 0;
+});
 
 /**
  * Markdown summary of every edited tile, written for pasting into an AI
@@ -295,7 +299,7 @@ btnNotes.addEventListener('click', async () => {
   if (!state.loaded || state.dirty.size === 0) return;
   try {
     await navigator.clipboard.writeText(hackNotes());
-    flashStatus('Edit notes copied — paste into your coding assistant');
+    flashStatus('Notes copied');
   } catch {
     flashStatus('Clipboard unavailable — check browser permissions');
   }

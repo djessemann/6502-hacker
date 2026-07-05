@@ -72,8 +72,7 @@
             </div>
             <select id="palette-select" aria-label="Preview palette"></select>
             <p class="palette-note">
-              These are palette <strong>slots</strong>, not final colors — the game assigns real
-              colors at runtime. Preview palettes are cosmetic only.
+              Slots, not final colors — the game assigns real colors at runtime.
             </p>
           </div>
 
@@ -95,12 +94,6 @@
             <button id="tool-undo" type="button" title="Cmd/Ctrl+Z">Undo</button>
             <button id="tool-redo" type="button" title="Cmd/Ctrl+Shift+Z">Redo</button>
           </div>
-
-          <p class="hint">
-            Keys: <kbd>1</kbd>–<kbd>4</kbd> color · <kbd>B</kbd>/<kbd>F</kbd> tool · <kbd>[</kbd>
-            <kbd>]</kbd> tile · <kbd>↑↓←→</kbd> cursor · <kbd>Space</kbd> paint · <kbd>⌘Z</kbd> undo
-            · right-click picks up a color
-          </p>
         </section>
       </main>
 
@@ -116,39 +109,91 @@
     <div id="drop-overlay" hidden><span>Drop to load</span></div>
 
     <dialog id="help-dialog">
-      <h2>CHR Workbench in 60 seconds</h2>
+      <h2>Help</h2>
+
+      <h3>What you're looking at</h3>
       <p>
-        <strong>What you're looking at.</strong> Every NES cartridge stores its art as a grid of
-        8×8-pixel <em>tiles</em> called CHR data. The sheet on the left is all of it. Sprites, text,
-        backgrounds — if you can see it in the game, it's made of these tiles.
+        NES art is stored as 8×8-pixel <em>tiles</em> called CHR data. The sheet on the left is
+        every tile in the file — sprites, text, backgrounds. Click a tile to edit it on the right.
       </p>
+
+      <h3>Pattern tables</h3>
       <p>
-        <strong>Pattern tables.</strong> The console reads tiles in pages of 256, labelled
-        <em>PT0, PT1…</em> on the sheet. When game code (or an AI assistant) refers to &ldquo;tile
-        $A3&rdquo;, it means the position <em>within</em> a pattern table — the status bar shows
-        both numbers for whatever you select.
+        The console reads tiles in pages of 256, labelled <em>PT0, PT1…</em> on the sheet. Game code
+        refers to a tile by its position within a page — &ldquo;tile $A3&rdquo; — so the status bar
+        shows that id and the tile's file offset alongside the overall index.
       </p>
+
+      <h3>Colors</h3>
       <p>
-        <strong>Why only 4 shades?</strong> Tiles don't store colors, just slots 0–3. The game
-        assigns real colors at runtime, and reuses the same tile with different palettes. The
-        preview palettes here are cosmetic — your edits always save as slots.
+        Tiles store slots 0–3, not colors. The game maps slots to real colors while it runs, and
+        often reuses one tile with several palettes. The preview palettes only change how this
+        editor displays slots — saved data is identical in every preview.
       </p>
+
+      <h3>8×16 pairs</h3>
       <p>
-        <strong>8×16 pairs.</strong> Many games build characters from two stacked tiles. If a sprite
-        sheet looks scrambled, toggle the pair view.
+        Many games build characters from two stacked tiles. If a sprite sheet looks interleaved,
+        turn on the pair view: the sheet reorders into 8×16 units and the editor edits both tiles
+        together — flips included.
       </p>
+
+      <h3>Controls</h3>
+      <table class="controls">
+        <tr>
+          <td>Paint</td>
+          <td>click-drag with Brush, click with Fill · <kbd>B</kbd>/<kbd>F</kbd> switch tools</td>
+        </tr>
+        <tr>
+          <td>Pick a slot</td>
+          <td>click a swatch · <kbd>1</kbd>–<kbd>4</kbd></td>
+        </tr>
+        <tr>
+          <td>Pick up a color</td>
+          <td>right-click or <kbd>Alt</kbd>-click a pixel in the editor</td>
+        </tr>
+        <tr>
+          <td>Change tile</td>
+          <td>click the sheet · <kbd>[</kbd> and <kbd>]</kbd> step</td>
+        </tr>
+        <tr>
+          <td>Draw by keyboard</td>
+          <td><kbd>↑↓←→</kbd> move the cursor · <kbd>Space</kbd> or <kbd>Enter</kbd> paints</td>
+        </tr>
+        <tr>
+          <td>Undo / redo</td>
+          <td>
+            <kbd>Cmd/Ctrl</kbd>+<kbd>Z</kbd> · <kbd>Cmd/Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>
+          </td>
+        </tr>
+        <tr>
+          <td>Zoom the sheet</td>
+          <td><strong>−</strong> / <strong>+</strong> in the sheet toolbar</td>
+        </tr>
+      </table>
+
+      <h3>Workflow</h3>
+      <ol>
+        <li>Redraw tiles. Edited tiles get a red corner mark.</li>
+        <li>
+          <em>↓ .nes</em> downloads a patched copy of the ROM — only the art bytes change. Test it
+          in an emulator such as Mesen or FCEUX.
+        </li>
+        <li>
+          <em>Copy notes</em> puts a summary of your edits on the clipboard — mapper, tile ids, file
+          offsets — ready to paste into an AI coding assistant for the code side of the hack:
+          palette swaps, tile remapping, level edits.
+        </li>
+      </ol>
+
+      <h3>Limitations</h3>
       <p>
-        <strong>Suggested workflow.</strong> 1) Redraw tiles here. 2) Download the patched
-        <code>.nes</code> and test it in an emulator (Mesen, FCEUX). 3) Hit <em>Copy notes</em> and
-        paste into your AI coding assistant — it lists exactly which tiles you changed, with the ids
-        and file offsets code work needs (palette swaps, tile remapping, level edits).
+        Games whose header reports no CHR-ROM draw with CHR-RAM: their art is generated by code and
+        can't be edited here. Bank-switched games reuse tiles, so one edit can appear on several
+        screens. Everything stays in your browser — closing the tab discards unexported work.
       </p>
-      <p>
-        <strong>Heads-up.</strong> Games whose header reports no CHR-ROM draw with CHR-RAM — their
-        art is generated by code and can't be edited here. And bank-switched games reuse tiles in
-        several places, so an edit can show up in more than one screen.
-      </p>
-      <form method="dialog"><button type="submit">Got it</button></form>
+
+      <form method="dialog"><button type="submit">Close</button></form>
     </dialog>
 
     <script type="module" src="/src/main.ts"></script>
