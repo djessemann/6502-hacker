@@ -29,6 +29,19 @@ interface TileDelta {
   after: Uint8Array;
 }
 
+/**
+ * One placed tile on the assembly bench. The same shape will describe a
+ * metasprite entry when layout import lands.
+ */
+export interface BenchCell {
+  tile: number;
+  flipH: boolean;
+  flipV: boolean;
+}
+
+export const BENCH_COLS = 4;
+export const BENCH_ROWS = 4;
+
 const UNDO_LIMIT = 200;
 
 type Listener = () => void;
@@ -38,10 +51,18 @@ class AppState {
   /** Original file bytes, untouched — the patch base. */
   fileBytes: Uint8Array | null = null;
   romInfo: RomInfo | null = null;
-  /** Working CHR buffer (mutated by edits). */
+  /**
+   * Tile-aligned window into the working buffer. In CHR-ROM games this is
+   * the whole buffer; in CHR-RAM games it starts `viewOffset` bytes in so
+   * misaligned graphics can be brought into register.
+   */
   chr: Uint8Array | null = null;
-  /** Pristine CHR copy used for dirty-tile tracking. */
+  /** Matching window into the pristine copy, for dirty-tile tracking. */
   originalChr: Uint8Array | null = null;
+  /** Full working buffer (edits land here through the `chr` view). */
+  private workFull: Uint8Array | null = null;
+  private origFull: Uint8Array | null = null;
+  viewOffset = 0;
 
   selected = 0;
   colorSlot = 3;
@@ -53,6 +74,9 @@ class AppState {
   hoverTile: number | null = null;
   dirty = new Set<number>();
   clipboard: Uint8Array | null = null;
+  bench: (BenchCell | null)[] = new Array<BenchCell | null>(BENCH_COLS * BENCH_ROWS).fill(null);
+  /** Bench cell armed to receive the next sheet click, or null. */
+  benchSel: number | null = null;
 
   private undoStack: TileDelta[][] = [];
   private redoStack: TileDelta[][] = [];
@@ -90,18 +114,55 @@ class AppState {
     return even + 1 < this.tiles ? [even, even + 1] : [even];
   }
 
+  /** Full working buffer — the thing to splice back into the ROM. */
+  get chrFull(): Uint8Array | null {
+    return this.workFull;
+  }
+
   loadRom(name: string, bytes: Uint8Array, info: RomInfo, chr: Uint8Array): void {
     this.fileName = name;
     this.fileBytes = bytes;
     this.romInfo = info;
-    this.chr = chr;
-    this.originalChr = chr.slice();
+    this.workFull = chr;
+    this.origFull = chr.slice();
+    this.viewOffset = 0;
+    this.applyView();
     this.selected = 0;
     this.cursor = { x: 0, y: 0 };
     this.hoverTile = null;
     this.dirty.clear();
     this.undoStack = [];
     this.redoStack = [];
+    this.bench.fill(null);
+    this.benchSel = null;
+    this.emit();
+  }
+
+  /** Recompute the tile-aligned views for the current viewOffset. */
+  private applyView(): void {
+    if (!this.workFull || !this.origFull) return;
+    const off = this.viewOffset;
+    const usable = Math.floor((this.workFull.length - off) / TILE_BYTES) * TILE_BYTES;
+    this.chr = this.workFull.subarray(off, off + usable);
+    this.originalChr = this.origFull.subarray(off, off + usable);
+  }
+
+  /**
+   * Shift the decode window by 0–15 bytes (CHR-RAM mode). Tile indices
+   * change meaning, so undo history and the bench are reset and the
+   * dirty set is rescanned against the pristine copy.
+   */
+  setViewOffset(off: number): void {
+    if (!this.workFull) return;
+    this.viewOffset = ((off % TILE_BYTES) + TILE_BYTES) % TILE_BYTES;
+    this.applyView();
+    this.undoStack = [];
+    this.redoStack = [];
+    this.bench.fill(null);
+    this.benchSel = null;
+    this.selected = Math.max(0, Math.min(this.tiles - 1, this.selected));
+    this.dirty.clear();
+    for (let t = 0; t < this.tiles; t++) this.refreshDirty(t);
     this.emit();
   }
 
