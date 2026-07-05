@@ -211,11 +211,6 @@ kbd {
   margin: 0 0 8px;
 }
 
-.empty-note {
-  margin: 0;
-  max-width: 34em;
-}
-
 /* ── Editor pane ────────────────────────────────────────── */
 
 #editor-pane {
@@ -262,12 +257,6 @@ kbd {
 .swatch[aria-pressed='true'] {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
-}
-
-.palette-note {
-  margin: 0;
-  color: var(--ink-dim);
-  font-size: 11px;
 }
 
 .tools {
