@@ -54,6 +54,17 @@ a bench cell, then tiles in the sheet, with per-placement H/V flips. It
 re-reads live data, so painting a placed tile updates the assembled
 character as you work. (Tile composition — metasprites — is game-specific
 data no generic tool can parse, so the bench puts your eyes in charge.)
+_Copy as JSON_ exports the bench in the layout format below.
+
+**Layouts** render pixel-accurate in-game characters: _Import…_ accepts
+JSON describing each sprite's tile placements —
+`{ "sprites": [ { "name", "pt", "tiles": [ { "tile": "$3A", "x", "y",
+"flipH", "flipV" } ] } ] }` — and shows them as a live gallery. Click
+anywhere on a rendered character to jump to that tile in the editor. The
+import dialog's _Copy prompt_ button produces ready-made instructions for
+an AI coding assistant to extract a game's metasprite tables into this
+format, closing the loop: extract with your assistant, paste here, edit
+characters whole.
 
 ## The 2bpp planar format
 

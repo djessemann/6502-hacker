@@ -7,8 +7,10 @@ import { clearTile, flipTileH, flipTileV, getTileBytes, setTileBytes, TILE_BYTES
 import { extractChr, parseRom, patchRom, RomError } from './ines';
 import { BenchView } from './bench';
 import { EditorView } from './editor';
+import { LayoutGallery } from './gallery';
+import { parseLayouts } from './layouts';
 import { SheetView } from './sheet';
-import { PALETTES, state } from './state';
+import { BENCH_COLS, PALETTES, state } from './state';
 
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
 
@@ -41,6 +43,13 @@ const benchBlock = $('#bench-block');
 const benchFlipH = $<HTMLButtonElement>('#bench-flip-h');
 const benchFlipV = $<HTMLButtonElement>('#bench-flip-v');
 const benchRemove = $<HTMLButtonElement>('#bench-remove');
+const benchCopy = $<HTMLButtonElement>('#bench-copy');
+const layoutsBlock = $('#layouts-block');
+const layoutsHint = $('#layouts-hint');
+const layoutClear = $<HTMLButtonElement>('#layout-clear');
+const layoutDialog = $<HTMLDialogElement>('#layout-dialog');
+const layoutJson = $<HTMLTextAreaElement>('#layout-json');
+const layoutError = $('#layout-error');
 
 const sheet = new SheetView($<HTMLCanvasElement>('#sheet-canvas'), {
   onSelect: (tile) => {
@@ -59,6 +68,7 @@ const sheet = new SheetView($<HTMLCanvasElement>('#sheet-canvas'), {
 });
 const editor = new EditorView($<HTMLCanvasElement>('#editor-canvas'));
 const bench = new BenchView($<HTMLCanvasElement>('#bench-canvas'));
+const gallery = new LayoutGallery($('#layouts-strip'), (tile) => state.select(tile));
 
 // ── Formatting helpers ─────────────────────────────────────
 
@@ -314,6 +324,74 @@ $('#bench-clear').addEventListener('click', () => {
   state.emit();
 });
 
+benchCopy.addEventListener('click', async () => {
+  const tiles = state.bench
+    .map((c, i) =>
+      c
+        ? {
+            tile: '$' + c.tile.toString(16).toUpperCase(),
+            x: (i % BENCH_COLS) * 8,
+            y: Math.floor(i / BENCH_COLS) * 8,
+            ...(c.flipH ? { flipH: true } : {}),
+            ...(c.flipV ? { flipV: true } : {}),
+          }
+        : null,
+    )
+    .filter(Boolean);
+  if (tiles.length === 0) return;
+  const doc = { sprites: [{ name: 'bench', tiles }] };
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(doc, null, 2));
+    flashStatus('Bench copied as layout JSON');
+  } catch {
+    flashStatus('Clipboard unavailable — check browser permissions');
+  }
+});
+
+// ── Layout import ──────────────────────────────────────────
+
+/** Handed to an AI coding assistant; explains exactly what to produce. */
+const LAYOUT_PROMPT = `Find the metasprite / sprite-layout data for this NES game's characters (from its disassembly, or by locating the metasprite tables in PRG-ROM) and output JSON for CHR Workbench in exactly this format:
+
+{ "sprites": [
+  { "name": "<short label>", "pt": 0,
+    "tiles": [ { "tile": "$3A", "x": 0, "y": 0, "flipH": false, "flipV": false } ] }
+] }
+
+Rules:
+- "tile" is the tile id the game writes to OAM, as a number or "$hex" string. It is relative to the pattern table given by "pt" (0 or 1) — CHR Workbench shows tiles as pt*256+id. If the game bank-switches CHR, say which bank in the sprite name.
+- "x"/"y" are pixel offsets within the sprite (top-left origin), exactly as the metasprite data positions each tile. Flips are optional, default false.
+- For 8x16 sprite mode, emit both tiles of each pair as separate entries (bottom tile at y+8).
+- Include the main character poses and a few enemies; keep names short. Output only the JSON.`;
+
+$('#layout-open').addEventListener('click', () => {
+  layoutError.textContent = '';
+  if (typeof layoutDialog.showModal === 'function') layoutDialog.showModal();
+  else layoutDialog.setAttribute('open', '');
+});
+$('#layout-cancel').addEventListener('click', () => layoutDialog.close());
+$('#layout-copy-prompt').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(LAYOUT_PROMPT);
+    layoutError.textContent = '';
+    flashStatus('Prompt copied — paste it into your coding assistant');
+  } catch {
+    layoutError.textContent = 'Clipboard unavailable — check browser permissions';
+  }
+});
+$('#layout-import').addEventListener('click', () => {
+  if (!state.loaded) return;
+  try {
+    const sprites = parseLayouts(layoutJson.value, state.tiles);
+    state.setLayouts(sprites);
+    layoutDialog.close();
+    flashStatus(`${sprites.length} layout${sprites.length === 1 ? '' : 's'} imported`);
+  } catch (err) {
+    layoutError.textContent = err instanceof Error ? err.message : String(err);
+  }
+});
+layoutClear.addEventListener('click', () => state.setLayouts([]));
+
 // ── Help & hack notes ──────────────────────────────────────
 
 $('#btn-help').addEventListener('click', () => {
@@ -519,6 +597,14 @@ function render(): void {
   benchFlipH.disabled = !cell;
   benchFlipV.disabled = !cell;
   benchRemove.disabled = !cell;
+  benchCopy.disabled = !state.bench.some(Boolean);
+
+  layoutsBlock.hidden = !state.loaded;
+  layoutClear.disabled = state.layouts.length === 0;
+  layoutsHint.textContent =
+    state.layouts.length === 0
+      ? 'No layouts yet — Import… takes JSON from your coding assistant.'
+      : 'Rendered live — click a sprite to jump to its tile.';
 
   const palette = PALETTES[state.paletteIndex];
   for (const swatch of swatches) {
@@ -546,6 +632,7 @@ function render(): void {
   sheet.render();
   editor.render();
   bench.render();
+  gallery.render();
 }
 
 state.subscribe(render);

@@ -4,6 +4,7 @@
  */
 import { TILE_BYTES, getTileBytes, setTileBytes, tileCount } from './chr';
 import type { RomInfo } from './ines';
+import type { LayoutSprite } from './layouts';
 
 export interface PalettePreset {
   name: string;
@@ -77,6 +78,16 @@ class AppState {
   bench: (BenchCell | null)[] = new Array<BenchCell | null>(BENCH_COLS * BENCH_ROWS).fill(null);
   /** Bench cell armed to receive the next sheet click, or null. */
   benchSel: number | null = null;
+  /** Imported metasprite layouts (session only, like everything else). */
+  layouts: LayoutSprite[] = [];
+  /** Bumped whenever `layouts` is replaced, so the gallery rebuilds its DOM. */
+  layoutsRev = 0;
+
+  setLayouts(sprites: LayoutSprite[]): void {
+    this.layouts = sprites;
+    this.layoutsRev++;
+    this.emit();
+  }
 
   private undoStack: TileDelta[][] = [];
   private redoStack: TileDelta[][] = [];
@@ -135,6 +146,8 @@ class AppState {
     this.redoStack = [];
     this.bench.fill(null);
     this.benchSel = null;
+    this.layouts = [];
+    this.layoutsRev++;
     this.emit();
   }
 
@@ -160,6 +173,8 @@ class AppState {
     this.redoStack = [];
     this.bench.fill(null);
     this.benchSel = null;
+    this.layouts = []; // tile indices shift meaning with the window
+    this.layoutsRev++;
     this.selected = Math.max(0, Math.min(this.tiles - 1, this.selected));
     this.dirty.clear();
     for (let t = 0; t < this.tiles; t++) this.refreshDirty(t);

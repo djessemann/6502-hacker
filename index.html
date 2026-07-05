@@ -146,6 +146,21 @@
             <p class="bench-hint">
               Tap a cell, then tiles in the sheet, to rebuild a character. Edits update it live.
             </p>
+            <button id="bench-copy" type="button" title="Copy the bench as layout JSON">
+              Copy as JSON
+            </button>
+          </div>
+
+          <div class="bench-block" id="layouts-block" hidden>
+            <div class="bench-head">
+              <span>Layouts</span>
+              <span class="bench-actions">
+                <button id="layout-open" type="button">Import…</button>
+                <button id="layout-clear" type="button" disabled>Clear</button>
+              </span>
+            </div>
+            <div id="layouts-strip"></div>
+            <p class="bench-hint" id="layouts-hint"></p>
           </div>
         </section>
       </main>
@@ -197,7 +212,18 @@
         and no tool can read that generically. The bench lets you rebuild one by eye: tap a bench
         cell, then tap tiles in the sheet to place them (placement advances to the next empty cell).
         Flip or remove the selected cell with the buttons. The bench redraws from live data, so
-        editing a placed tile updates the assembled character as you paint.
+        editing a placed tile updates the assembled character as you paint. <em>Copy as JSON</em>
+        exports the bench in the layout format below.
+      </p>
+
+      <h3>Layouts</h3>
+      <p>
+        For pixel-accurate in-game characters, import layout JSON via <em>Import…</em> in the
+        Layouts panel. The dialog's <em>Copy prompt</em> button gives your AI coding assistant exact
+        instructions for extracting a game's metasprite data into the right format. Imported sprites
+        render live from the working tiles — click anywhere on one to jump to that tile in the
+        editor. Layouts live in memory only; keep the JSON with your project and re-paste next
+        session.
       </p>
 
       <h3>CHR-RAM games</h3>
@@ -268,6 +294,30 @@
       </p>
 
       <form method="dialog"><button type="submit">Close</button></form>
+    </dialog>
+
+    <dialog id="layout-dialog">
+      <h2>Import layouts</h2>
+      <p>
+        Paste layout JSON describing how tiles compose into characters. The fastest way to get it:
+        <em>Copy prompt</em> below, give it to your AI coding assistant with the ROM, and paste what
+        it returns here.
+      </p>
+      <textarea
+        id="layout-json"
+        rows="9"
+        spellcheck="false"
+        placeholder='{ "sprites": [ { "name": "hero", "tiles": [
+  { "tile": "$3A", "x": 0, "y": 0 },
+  { "tile": "$3A", "x": 8, "y": 0, "flipH": true },
+  { "tile": "$3B", "x": 0, "y": 8 } ] } ] }'
+      ></textarea>
+      <p id="layout-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button id="layout-copy-prompt" type="button">Copy prompt</button>
+        <button id="layout-cancel" type="button">Cancel</button>
+        <button id="layout-import" type="button">Import</button>
+      </div>
     </dialog>
 
     <script type="module" src="/src/main.ts"></script>
